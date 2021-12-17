@@ -45,38 +45,31 @@ int parse_line(char*s,char** argv []){
 
 	}
 	parser(s,debut,strlen(s),*argv,n);
-    argv[n]=NULL;
+    //argv[n]=NULL;
     argv[0][space+1] = NULL;
     return 1;
 }
 
-int create_file(char** argv,char* buffer){
-    int fd = 0;
+/*
+ * int create_file(char** tab)
+ * permet la redirection d'une commande dans un fichier
+ * si le avant dernier mot de tab est ">"
+ * et le nom du fichier est le dernier mot de tab
+ */
+int create_file(char** tab){
     int i = 0;
-    char** arg;
-    int copy;
-    while(argv[i] != NULL){
-        arg[i] = argv[i];
+    while(tab[i] != NULL)
         i++;
-    }
-    if(strcmp(argv[i-2], ">") == 0){
-        fd = open(argv[i-1],O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
-        copy = dup(STDOUT_FILENO);
-        close(STDOUT_FILENO);
-        arg[i-2] = NULL;
-        arg[i-1] = NULL;
-        execvp(arg[0],arg);
-        int byte_read_redirection = read(copy,buffer,sizeof(buffer));
-        if(byte_read_redirection == -1)
-            return -1;
-        if( write(fd,buffer,byte_read_redirection) == -1)
-            return -1;
-        close(fd);
-        dup2(copy,STDOUT_FILENO);
-        close(copy);
+    if(strcmp(tab[i-2],">") != 0 )
         return 0;
-    }
-    return 1;
+    int fd = open(tab[i-1],O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+    tab[i-2] = NULL;
+    //tab[i-1] = NULL;
+        if(fd == -1)
+            return -1;
+        dup2(fd,STDOUT_FILENO);
+        execvp(tab[0],tab);
+        return fd;
 }
 
 
@@ -95,9 +88,10 @@ int main(int argc, char* argv[]){
             i++;
         }
         buffer[i-1] = '\0';
+        //int fd;
         char** tab=malloc(sizeof(char)*(strlen(buffer) + space) );
-        for(int i=0;i<17;i++){
-			tab[i]=malloc(sizeof(char)*1024);
+        for(int y=0;y<17;y++){
+			tab[y]=malloc(sizeof(char)*1024);
 		}
         int parse = parse_line(buffer,&tab);
         //cree un nouveau processus
@@ -109,8 +103,9 @@ int main(int argc, char* argv[]){
                 if(execlp(buffer,buffer,NULL) == -1)
                     return -1;
             }else{
-                if(execvp(tab[0],tab) == -1)
-                    return -1;
+                if((create_file(tab) == 0))
+                    if(execvp(tab[0],tab) == -1)
+                        return -1;
             }
         }else{
             wait(NULL);
@@ -124,27 +119,3 @@ int main(int argc, char* argv[]){
         }
     } while( (byte_read = read(STDIN_FILENO,buffer,BUFSIZE) ) > 0 );
 }
-
-/*
- * if(strcmp(tab[avant dernier],"<") == 0){
- *      int fd = open("ficher dernier",O_CREAT|O_TRUNC|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
- *      if(fd == -1)
- *          return -1;
- *      int copy = dup(STDOUT_FILENO);
- *      close(STDOUT_FILENO);
- *      int byte_read_redirection = read(copy,buffer,BUFSIZE);
- *      write(fd,buffer,byte_read_redirection);
- *      close(fd);
- *      dup2(copy,STDOUT_FILENO);
- *      close(copy);
- * }
- *
- *
- *  creer fichier
- *  copier STDOUT_FILENO dans ficher creer
- *  fermer STDOUT_FILENO
- *  lire et ecrire dans fichier
- *  ouvrir STDOUT_FILENO
- *  fermer fichier
- *
- */
